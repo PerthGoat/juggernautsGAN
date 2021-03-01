@@ -14,6 +14,8 @@ training_image_path = './training_sets_mnist/train-images.idx3-ubyte'
 test_label_path = './training_sets_mnist/t10k-labels.idx1-ubyte'
 test_image_path = './training_sets_mnist/t10k-images.idx3-ubyte'
 
+model_save_path = './savedmodel/trainedmnistdata.h5'
+
 # load in the binaries into numpy arrays
 mnb = MNistBinaryManager(training_label_path, training_image_path, test_label_path, test_image_path)
 
@@ -30,24 +32,33 @@ plt.show()
 '''
 
 # gets the shape keras will by using the training image lengths
-keras_shape = (len(mnb.getBinaryByTag(training_image_path)[0]), len(mnb.getBinaryByTag(training_image_path)[1]))
+# this works because:
+# 28 rows
+# each row has 28 columns
+keras_shape = (len(mnb.getBinaryByTag(training_image_path)[0]), len(mnb.getBinaryByTag(training_image_path)[0][0]))
 
+# creates a new sequential model with the length of the 
 model = keras.Sequential([
   keras.layers.Flatten(input_shape=keras_shape),
-  keras.layers.Dense(128, activation='relu'),
+  keras.layers.Dense(128, activation="relu"),
   keras.layers.Dense(10)
 ])
 
 model.compile(
-optimizer='adam',
+optimizer="adam",
 loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-metrics=['accuracy']
+metrics=["accuracy"]
 )
 
-model.fit(mnb.getBinaryByTag(training_image_path)/255, mnb.getBinaryByTag(training_label_path), epochs=10)
+model.fit(mnb.getBinaryByTag(training_image_path)/255, mnb.getBinaryByTag(training_label_path), epochs=1)
 
 test_loss, test_acc = model.evaluate(mnb.getBinaryByTag(test_image_path)/255, mnb.getBinaryByTag(test_label_path), verbose=2)
 print("\nTest accuracy:", test_acc)
+
+# saving the model
+# i decided to use the h5 format because the new format was giving me a warning
+print("Saving model")
+model.save(model_save_path, save_format='h5')
 
 probability_model = keras.Sequential(
 [model, keras.layers.Softmax()]
