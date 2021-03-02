@@ -2,6 +2,8 @@ import sys
 import os
 import numpy
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 from tensorflow import keras
 from tensorflow.keras.models import load_model
 
@@ -31,4 +33,4 @@ numpy_byte_img = (1 - (numpy.array(img) / 255)).reshape(1, 28, 28)
 #pyplot.imshow(numpy_byte_img)
 #pyplot.show()
 
-print(model.predict_classes(numpy_byte_img))
+print(numpy.argmax(model.predict(numpy_byte_img)))

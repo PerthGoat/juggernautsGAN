@@ -40,7 +40,7 @@ keras_shape = (len(mnb.getBinaryByTag(training_image_path)[0]), len(mnb.getBinar
 # creates a new sequential model with the length of the 
 model = keras.Sequential([
   keras.layers.Flatten(input_shape=keras_shape),
-  keras.layers.Dense(128, activation="relu"),
+  keras.layers.Dense(64, activation="relu"),
   keras.layers.Dense(10) # this is the number of classifications possible (outputs)
 ])
 
@@ -50,7 +50,7 @@ loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
 metrics=["accuracy"]
 )
 
-model.fit(mnb.getBinaryByTag(training_image_path)/255, mnb.getBinaryByTag(training_label_path), epochs=1)
+model.fit(mnb.getBinaryByTag(training_image_path)/255, mnb.getBinaryByTag(training_label_path), epochs=5)
 
 test_loss, test_acc = model.evaluate(mnb.getBinaryByTag(test_image_path)/255, mnb.getBinaryByTag(test_label_path), verbose=2)
 print("\nTest accuracy:", test_acc)
