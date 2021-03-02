@@ -1,5 +1,0 @@
-# old, excluded the exported images from the git repo
-exported_images/
-# do not keep the saved model, but keep the folder for it
-savedmodel/*
-!savedmodel/.gitkeep
