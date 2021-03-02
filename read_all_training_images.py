@@ -41,7 +41,7 @@ keras_shape = (len(mnb.getBinaryByTag(training_image_path)[0]), len(mnb.getBinar
 model = keras.Sequential([
   keras.layers.Flatten(input_shape=keras_shape),
   keras.layers.Dense(128, activation="relu"),
-  keras.layers.Dense(10)
+  keras.layers.Dense(10) # this is the number of classifications possible (outputs)
 ])
 
 model.compile(
@@ -60,11 +60,10 @@ print("\nTest accuracy:", test_acc)
 print("Saving model")
 model.save(model_save_path, save_format='h5')
 
-probability_model = keras.Sequential(
-[model, keras.layers.Softmax()]
-)
+# could use a softmax layer here for probabilities but normal vectors work fine
 
-predictions = probability_model.predict(mnb.getBinaryByTag(test_image_path)/255)
+# predict the classifications of the test images
+predictions = model.predict(mnb.getBinaryByTag(test_image_path)/255)
 
 #print(predictions[0])
 
