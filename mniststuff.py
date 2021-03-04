@@ -47,7 +47,7 @@ def main():
   print(f"Using {device}")
 
   trainset = torchvision.datasets.MNIST(root='./data', train=True, transform=transforms.ToTensor())
-  trainloader = torch.utils.data.DataLoader(trainset, batch_size=100, shuffle=True, num_workers=2, pin_memory=1)
+  trainloader = torch.utils.data.DataLoader(trainset, batch_size=10, shuffle=True, num_workers=2, pin_memory=1)
 
   net = Net().to(device)
 

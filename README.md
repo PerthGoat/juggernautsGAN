@@ -19,3 +19,11 @@ on
 ## install pytorch
 
 `pip install torch===1.7.1+cu110 torchvision===0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html`
+
+---
+
+## usage
+
+run mniststuff.py for the actual neural network generation
+
+run load_and_guess.py [image path] to load an image and make a guess
