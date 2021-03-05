@@ -13,6 +13,7 @@ class Net(nn.Module):
     self.fc1 = nn.Linear(13, 100) #dense layers
     self.fc2 = nn.Linear(100, 10)
     self.fc3 = nn.Linear(650, 10)
+    self.soft = nn.Softmax(dim=1)
   def forward(self, x):
     #print(f"orig: {x.shape}")
     x = F.relu(self.conv1(x))
@@ -35,6 +36,8 @@ class Net(nn.Module):
     #print(x.shape)
     
     x = F.relu(self.fc3(x))
+    
+    x = self.soft(x)
     
     #print(x.shape)
     

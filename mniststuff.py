@@ -14,6 +14,7 @@ class Net(nn.Module):
     self.fc1 = nn.Linear(13, 100) #dense layers
     self.fc2 = nn.Linear(100, 10)
     self.fc3 = nn.Linear(650, 10)
+    self.soft = nn.Softmax(dim=1)
   def forward(self, x):
     #print(f"orig: {x.shape}")
     x = F.relu(self.conv1(x))
@@ -37,6 +38,8 @@ class Net(nn.Module):
     
     x = F.relu(self.fc3(x))
     
+    x = self.soft(x)
+    
     #print(x.shape)
     
     return x
@@ -47,7 +50,7 @@ def main():
   print(f"Using {device}")
 
   trainset = torchvision.datasets.MNIST(root='./data', train=True, transform=transforms.ToTensor())
-  trainloader = torch.utils.data.DataLoader(trainset, batch_size=100, shuffle=True, num_workers=2, pin_memory=1)
+  trainloader = torch.utils.data.DataLoader(trainset, batch_size=10, shuffle=True, num_workers=2, pin_memory=1)
 
   net = Net().to(device)
 
@@ -70,6 +73,7 @@ def main():
 
     print(f"Accuracy for epoch {epoch}: %{accuracy / 60000 * 100}")
     
+  
   torch.save(net.state_dict(), './saved_models_pytorch/saved_model.p')
 
 if __name__ == "__main__":
