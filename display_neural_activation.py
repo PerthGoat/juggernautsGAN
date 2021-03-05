@@ -5,6 +5,7 @@ import os
 import sys
 import numpy
 from PIL import Image
+import matplotlib.pyplot as plt
 
 class Net(nn.Module):
   def __init__(self):
@@ -43,6 +44,8 @@ class Net(nn.Module):
 assert len(sys.argv) > 1
 assert os.path.isfile(sys.argv[1])
 
+criterion = nn.CrossEntropyLoss()
+
 model_state_dict = torch.load('./saved_models_pytorch/saved_model.p')
 
 model = Net()
@@ -53,4 +56,19 @@ img = Image.open(sys.argv[1]).convert('L').resize((28, 28))
 
 numpy_byte_img = (1 - (numpy.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')
 
-print(numpy.argmax(model(torch.from_numpy(numpy_byte_img)).detach().numpy()))
+numpy_torch_tensor = torch.tensor(numpy_byte_img, requires_grad=True)
+
+#model.zero_grad()
+
+#print(numpy_torch_tensor)
+
+model_to_reverse = model(numpy_torch_tensor)
+
+
+loss = criterion(model_to_reverse, torch.tensor([1]))
+loss.backward()
+
+#print(numpy_torch_tensor.grad)
+
+plt.imshow(numpy_torch_tensor.grad[0][0])
+plt.show()
