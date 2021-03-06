@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 from matplotlib import pyplot
 from tqdm import trange
+from torch.autograd import Variable
 
 import cv2
 
@@ -52,17 +53,20 @@ class Net(nn.Module):
 class antiNet(nn.Module):
   def __init__(self):
     super(antiNet, self).__init__()
-    self.fc1 = nn.Linear(10, 100)
+    self.fc1 = nn.Linear(1, 100)
     self.fc2 = nn.Linear(100, 200)
     self.fc3 = nn.Linear(200, 784)
+    #self.soft = nn.Softmax(dim=1)
   def forward(self, x):
     x = F.relu(self.fc1(x))
   
-    x = self.fc2(x)
+    x = F.relu(self.fc2(x))
     
-    x = F.relu(self.fc3(x))
+    x = F.rrelu(self.fc3(x))
     
-    x = F.relu(x.view(-1, 1, 28, 28))
+    #x = self.soft(x)
+    
+    x = x.view(-1, 1, 28, 28)
     
     #print(x.shape)
     return x
@@ -96,28 +100,45 @@ goal_number = 1
 
 net = antiNet().to(device)
 
-criterion = nn.MSELoss()
+#net.apply(init_weights)
+
+criterion_binary = nn.BCELoss()
+criterion_image = nn.MSELoss()
 optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
 
-item = torch.tensor([np.array([0, 0, 1, 0, 0, 0, 0, 0, 0, 0], dtype='float32')]).to(device)
+item = torch.tensor([np.array([0], dtype='float32')]).to(device)
 
-for epocs in range(5):
-  for i in trange(500):
+#item = model_to_break(numpy_byte_img).detach()
+
+
+for epocs in range(1):
+  for i in trange(5000):
+    # image check
+    optimizer.zero_grad()
+    
+    outputs = net(item)
+    
+    image_loss = criterion_image(outputs, numpy_byte_img)
+    
+    image_loss.backward()
+    optimizer.step()
+  
+    # noise adder
     optimizer.zero_grad()
 
-    outputs = net(item) + numpy_byte_img
+    outputs = net(item)
 
     check_net = model_to_break(outputs)
 
-    loss = criterion(check_net[0], torch.tensor([0, 0, 30, 0, 0, 0, 0, 0, 0, 0], dtype=torch.float32).to(device))
-    #print(loss)
-    loss.backward()
+    check_net_loss = criterion_binary(check_net[0], torch.tensor([0, 0, 0, 0, 1, 0, 0, 0, 0, 0], dtype=torch.float32).to(device))
+    
+    check_net_loss.backward()
     optimizer.step()
 
-
+print(check_net_loss)
 test_of_system = net(item)
 
-output_test = test_of_system + numpy_byte_img
+output_test = test_of_system
 
 check_of_system = model_to_break(test_of_system)
 
