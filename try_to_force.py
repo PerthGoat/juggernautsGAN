@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+import time
+
 import os
 import sys
 import numpy as np
@@ -22,53 +24,40 @@ class Net(nn.Module):
     self.fc3 = nn.Linear(650, 10)
     self.soft = nn.Softmax(dim=1)
   def forward(self, x):
-    #print(f"orig: {x.shape}")
     x = F.relu(self.conv1(x))
-    #print(x.shape)
     
     x = F.max_pool2d(x, (2, 2)) #pooling layer
     
-    #print(x.shape)
-    
     x = self.fc1(x)
-    
-    #print(x.shape)
     
     x = self.fc2(x)
     
-    #print(x.shape)
-    
     x = x.view(-1, 650)
-    
-    #print(x.shape)
     
     x = F.relu(self.fc3(x))
     
     x = self.soft(x)
-    
-    #print(x.shape)
     
     return x
 
 class antiNet(nn.Module):
   def __init__(self):
     super(antiNet, self).__init__()
-    self.fc1 = nn.Linear(1, 100)
-    self.fc2 = nn.Linear(100, 200)
-    self.fc3 = nn.Linear(200, 784)
-    #self.soft = nn.Softmax(dim=1)
+    self.fc1 = nn.Linear(784, 784 * 2)
+    #self.fc2 = nn.Linear(100, 200)
+    self.fc3 = nn.Linear(784 * 2, 784)
+    self.soft = nn.Softmax(dim=2)
   def forward(self, x):
-    x = F.relu(self.fc1(x))
+    x = torch.rrelu(torch.rrelu(self.fc1(x)))
   
-    x = F.relu(self.fc2(x))
+    #x = F.rrelu(self.fc3(x))
     
-    x = F.rrelu(self.fc3(x))
-    
-    #x = self.soft(x)
+    x = torch.sigmoid(torch.sigmoid(self.fc3(x)))
     
     x = x.view(-1, 1, 28, 28)
     
-    #print(x.shape)
+    x = self.soft(x)
+    
     return x
 
 # file to corrupt
@@ -82,7 +71,8 @@ print(f"Using {device}")
 # open the image
 
 img = Image.open(sys.argv[1]).convert('L').resize((28, 28))
-numpy_byte_img = torch.tensor((1 - (np.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')).to(device)
+numpy_byte_img = torch.tensor((1 - (np.array(img) / 255)).flatten().astype('float32')).to(device)
+#numpy_byte_img = torch.tensor((1 - (np.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')).to(device)
 
 # now the training starts
 
@@ -92,73 +82,66 @@ model_to_break = Net().to(device)
 
 model_to_break.load_state_dict(model_state_dict)
 
-#image_generate = image_generate_raw.reshape(28, 28)
-
-goal_number = 1
-
 # start anti-training
 
 net = antiNet().to(device)
 
 #net.apply(init_weights)
 
-criterion_binary = nn.BCELoss()
+criterion_binary = nn.MSELoss()
 criterion_image = nn.MSELoss()
-optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
-
-item = torch.tensor([np.array([0], dtype='float32')]).to(device)
-
-#item = model_to_break(numpy_byte_img).detach()
-
+mnloss = nn.LogSoftmax(dim=2)
+optimizer = optim.Adam(net.parameters(), lr=0.01)
 
 for epocs in range(1):
   for i in trange(5000):
     # image check
-    optimizer.zero_grad()
+    '''optimizer.zero_grad()
     
     outputs = net(item)
     
     image_loss = criterion_image(outputs, numpy_byte_img)
     
     image_loss.backward()
-    optimizer.step()
+    optimizer.step()'''
   
     # noise adder
     optimizer.zero_grad()
 
-    outputs = net(item)
-
-    check_net = model_to_break(outputs)
-
-    check_net_loss = criterion_binary(check_net[0], torch.tensor([0, 0, 0, 0, 1, 0, 0, 0, 0, 0], dtype=torch.float32).to(device))
+    outputs = net(numpy_byte_img)
     
-    check_net_loss.backward()
+    image_loss = criterion_image(mnloss(outputs), numpy_byte_img.reshape(1, 1, 28, 28))
+    
+    #check_net = model_to_break(outputs)
+
+    #check_net_loss = criterion_binary(check_net[0], torch.tensor([0, 0, 0, 0, 1, 0, 0, 0, 0, 0], dtype=torch.float32).to(device))
+    
+    image_loss.backward()
     optimizer.step()
 
-print(check_net_loss)
-test_of_system = net(item)
+print(image_loss)
+test_of_system = net(numpy_byte_img)
 
 output_test = test_of_system
 
-check_of_system = model_to_break(test_of_system)
+check_of_system = model_to_break(output_test)
 
 print(check_of_system)
 
-pyplot.imshow(output_test.cpu().detach().numpy()[0][0], cmap='Greys')
-pyplot.xlabel(np.argmax(check_of_system.cpu().detach().numpy()[0]))
+image_array_data_numpy = output_test.cpu().detach().numpy()[0][0]
+#image_array_data_numpy = (1 - output_test.cpu().detach().numpy()[0][0]) * 255
+
+image_array_data_guess = np.argmax(check_of_system.cpu().detach().numpy()[0])
+
+#print(image_array_data_guess)
+
+#print(image_array_data_numpy)
+
+#img = Image.fromarray(image_array_data_numpy).convert("L")
+
+#img.save(f"./supersave/{time.time()}_{image_array_data_guess}.bmp")
+#img.show()
+
+pyplot.imshow(image_array_data_numpy, cmap='Greys')
+pyplot.xlabel(image_array_data_guess)
 pyplot.show()
-
-#print(test_of_system)
-#
-
-#print(loss)
-
-#print(check_net > 24)
-
-#outputs = net(check_net)
-
-#print(check_net)
-
-#loss = criterion(outputs, label)
-#loss.backward()
-#optimizer.step()
