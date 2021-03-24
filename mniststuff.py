@@ -20,13 +20,13 @@ class Net(nn.Module):
     
     x = F.max_pool2d(x, (2, 2)) #pooling layer
     
-    x = self.fc1(x)
+    x = F.relu(self.fc1(x))
     
     x = self.fc2(x)
     
     x = x.view(-1, 650)
     
-    x = F.relu(self.fc3(x))
+    x = torch.sigmoid(self.fc3(x))
     
     x = self.soft(x)
     
