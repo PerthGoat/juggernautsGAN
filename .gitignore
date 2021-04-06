@@ -1,3 +1,4 @@
 saved_models_pytorch/*
 !saved_models_pytorch/.gitkeep
-data/
+supersave/*
+!supersave/.gitkeep
