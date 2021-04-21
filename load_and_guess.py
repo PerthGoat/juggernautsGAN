@@ -6,9 +6,9 @@ import sys
 import numpy
 from PIL import Image
 
-class Net(nn.Module):
+class LAGNet(nn.Module):
   def __init__(self):
-    super(Net, self).__init__()
+    super(LAGNet, self).__init__()
     self.conv1 = nn.Conv2d(1, 5, 3) #convolutional layer
     self.fc1 = nn.Linear(13, 100) #dense layers
     self.fc2 = nn.Linear(100, 10)
@@ -31,17 +31,16 @@ class Net(nn.Module):
     
     return x
 
-assert len(sys.argv) > 1
-assert os.path.isfile(sys.argv[1])
+def LAGmain(pic_location):
 
-model_state_dict = torch.load('./saved_models_pytorch/saved_model.p')
+    model_state_dict = torch.load('./saved_models_pytorch/saved_model.p')
 
-model = Net()
+    model = LAGNet()
 
-model.load_state_dict(model_state_dict)
+    model.load_state_dict(model_state_dict)
 
-img = Image.open(sys.argv[1]).convert('L').resize((28, 28))
+    img = Image.open(pic_location).convert('L').resize((28, 28))
 
-numpy_byte_img = (1 - (numpy.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')
+    numpy_byte_img = (1 - (numpy.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')
 
-print(numpy.argmax(model(torch.from_numpy(numpy_byte_img)).detach().numpy()))
+    return numpy.argmax(model(torch.from_numpy(numpy_byte_img)).detach().numpy())

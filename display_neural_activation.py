@@ -41,34 +41,32 @@ class Net(nn.Module):
     
     return x
 
-assert len(sys.argv) > 1
-assert os.path.isfile(sys.argv[1])
+def DNAmain(filename):
+    criterion = nn.CrossEntropyLoss()
 
-criterion = nn.CrossEntropyLoss()
+    model_state_dict = torch.load('./saved_models_pytorch/saved_model.p')
 
-model_state_dict = torch.load('./saved_models_pytorch/saved_model.p')
+    model = Net()
 
-model = Net()
+    model.load_state_dict(model_state_dict)
 
-model.load_state_dict(model_state_dict)
+    img = Image.open(filename).convert('L').resize((28, 28))
 
-img = Image.open(sys.argv[1]).convert('L').resize((28, 28))
+    numpy_byte_img = (1 - (numpy.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')
 
-numpy_byte_img = (1 - (numpy.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')
+    numpy_torch_tensor = torch.tensor(numpy_byte_img, requires_grad=True)
 
-numpy_torch_tensor = torch.tensor(numpy_byte_img, requires_grad=True)
+    #model.zero_grad()
 
-#model.zero_grad()
+    #print(numpy_torch_tensor)
 
-#print(numpy_torch_tensor)
-
-model_to_reverse = model(numpy_torch_tensor)
+    model_to_reverse = model(numpy_torch_tensor)
 
 
-loss = criterion(model_to_reverse, torch.tensor([1]))
-loss.backward()
+    loss = criterion(model_to_reverse, torch.tensor([1]))
+    loss.backward()
 
-#print(numpy_torch_tensor.grad)
+    #print(numpy_torch_tensor.grad)
 
-plt.imshow(numpy_torch_tensor.grad[0][0])
-plt.show()
+    plt.imshow(numpy_torch_tensor.grad[0][0])
+    plt.show()

@@ -16,19 +16,31 @@ class Net(nn.Module):
     self.fc3 = nn.Linear(650, 10)
     self.soft = nn.Softmax(dim=1)
   def forward(self, x):
+    #print(f"orig: {x.shape}")
     x = F.relu(self.conv1(x))
+    #print(x.shape)
     
     x = F.max_pool2d(x, (2, 2)) #pooling layer
     
-    x = F.relu(self.fc1(x))
+    #print(x.shape)
+    
+    x = self.fc1(x)
+    
+    #print(x.shape)
     
     x = self.fc2(x)
     
+    #print(x.shape)
+    
     x = x.view(-1, 650)
     
-    x = torch.sigmoid(self.fc3(x))
+    #print(x.shape)
+    
+    x = F.relu(self.fc3(x))
     
     x = self.soft(x)
+    
+    #print(x.shape)
     
     return x
 

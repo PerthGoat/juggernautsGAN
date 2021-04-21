@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import load_and_guess
 
 import time
-
 import random
 
 import os
@@ -26,124 +26,150 @@ class Net(nn.Module):
     self.fc3 = nn.Linear(650, 10)
     self.soft = nn.Softmax(dim=1)
   def forward(self, x):
+
     x = F.relu(self.conv1(x))
-    
+
     x = F.max_pool2d(x, (2, 2)) #pooling layer
     
-    x = F.relu(self.fc1(x))
-    
+    x = self.fc1(x)
+
     x = self.fc2(x)
-    
+
     x = x.view(-1, 650)
-    
-    x = torch.sigmoid(self.fc3(x))
+
+    x = F.relu(self.fc3(x))
     
     x = self.soft(x)
-    
+
     return x
 
 class antiNet(nn.Module):
   def __init__(self):
     super(antiNet, self).__init__()
-    self.conv1 = nn.Conv2d(1, 6, 3)
-    self.fc1 = nn.Linear(13, 250)
-    self.fc2 = nn.Linear(19500, 784)
-    self.soft = nn.Softmax(dim=3)
+    self.fc1 = nn.Linear(1, 100)
+    self.fc2 = nn.Linear(100, 200)
+    self.fc3 = nn.Linear(200, 784)
   def forward(self, x):
-    x = torch.relu(self.conv1(x))
+    x = F.relu(self.fc1(x))
+  
+    x = F.relu(self.fc2(x))
     
-    x = F.max_pool2d(x, (2, 2))
+    x = F.rrelu(self.fc3(x))
     
-    #print(x.shape)
-    
-    x = torch.relu(self.fc1(x))
-    
-    #print(x.shape)
-    
-    x = x.view(-1, 19500)
-    
-    x = torch.sigmoid(self.fc2(x))
     
     x = x.view(-1, 1, 28, 28)
     
-    x = self.soft(x)
-    
-    #print(x.shape)
-    
     return x
 
-# file to corrupt
-assert len(sys.argv) > 1
-assert os.path.isfile(sys.argv[1])
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
-#device = "cpu"
 
 print(f"Using {device}")
 
+true_values = 0
+false_values = 0
+report = "";
+
 # open the image
+directory = './testdata/'
+for filename in os.listdir(directory):
 
-img = Image.open(sys.argv[1]).convert('L').resize((28, 28))
-#numpy_byte_img = torch.tensor((1 - (np.array(img) / 255)).flatten().astype('float32')).to(device)
-numpy_byte_img = torch.tensor((1 - (np.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')).to(device)
+    guess = load_and_guess.LAGmain(os.path.join(directory, filename))
 
-# now the training starts
+    img = Image.open(os.path.join(directory, filename)).convert('L').resize((28, 28))
+    numpy_byte_img = torch.tensor((1 - (np.array(img) / 255)).reshape(1, 1, 28, 28).astype('float32')).to(device)
 
-model_state_dict = torch.load('./saved_models_pytorch/saved_model.p')
+    # now the training starts
 
-model_to_break = Net().to(device)
+    model_state_dict = torch.load('./saved_models_pytorch/saved_model.p')
 
-model_to_break.load_state_dict(model_state_dict)
+    model_to_break = Net().to(device)
 
-# start anti-training
+    model_to_break.load_state_dict(model_state_dict)
 
-net = antiNet().to(device)
+    goal_number = 1
 
-real_number = 3
-r = list(range(0, real_number)) + list(range(real_number + 1, 10))
+    # start anti-training
 
-#net.apply(init_weights)
+    net = antiNet().to(device)
 
-criterion_binary = nn.CrossEntropyLoss()
-optimizer = optim.Adam(net.parameters(), lr=0.01)
+    criterion_binary = nn.BCELoss()
+    criterion_image = nn.MSELoss()
+    optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
 
-for epochs in range(1):
-  for i in trange(5000):
-    optimizer.zero_grad()
+    item = torch.tensor([np.array([0], dtype='float32')]).to(device)
+
+    real_number = guess
     
-    # reasoning: this is softmaxed, and the -0.5 * 2 allows a full depth of adjustment to the numpy image even though the anti-net is softmaxed
-    outputs = (net(numpy_byte_img) - 0.5) * 2 + numpy_byte_img
-    outputs *= (outputs >= 0)
-    check_net = model_to_break(outputs)
+    print("Guess: ", real_number)
     
-    check_net_loss = criterion_binary(check_net, torch.tensor(random.choice(r)).unsqueeze(dim=0).to(device))
-    check_net_loss.backward()
-    optimizer.step()
+    numbers = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    position = random.randint(0,len(numbers)-1)  
+    print("Position before: ", position)
+    if position == guess:
+        if position == 9:
+            position = position - 1
+        else:
+            position = position + 1
+    print("Random number: ", position)
+    numbers[position] = 1
 
-print(check_net_loss)
-#test_of_system = net(numpy_byte_img)
 
-output_test = (net(numpy_byte_img) - 0.5) * 2 + numpy_byte_img
-output_test *= (output_test >= 0)
+    for epocs in range(1):
+      for i in trange(5000):
+        # image check
+        optimizer.zero_grad()
+        
+        outputs = net(item)
+        
+        image_loss = criterion_image(outputs, numpy_byte_img)
+        
+        image_loss.backward()
+        optimizer.step()
+      
+        # noise adder
+        optimizer.zero_grad()
 
-check_of_system = model_to_break(output_test)
+        outputs = net(item)
 
-print(check_of_system)
+        check_net = model_to_break(outputs)
 
-#image_array_data_numpy = output_test.cpu().detach().numpy()[0][0]
-image_array_data_numpy = (1 - output_test.cpu().detach().numpy()[0][0]) * 255
+        check_net_loss = criterion_binary(check_net[0], torch.tensor(numbers, dtype=torch.float32).to(device))
+        
+        check_net_loss.backward()
+        optimizer.step()
 
-image_array_data_guess = np.argmax(check_of_system.cpu().detach().numpy()[0])
+    print(check_net_loss)
+    test_of_system = net(item)
 
-#print(image_array_data_guess)
+    output_test = test_of_system
 
-#print(image_array_data_numpy)
+    check_of_system = model_to_break(test_of_system)
 
-img = Image.fromarray(image_array_data_numpy).convert("L")
+    print(check_of_system)
+    
+    image_array_data_guess = np.argmax(check_of_system.cpu().detach().numpy()[0])
 
-img.save(f"./supersave/{time.time()}_{image_array_data_guess}.bmp")
-img.show()
+    pyplot.imshow(output_test.cpu().detach().numpy()[0][0], cmap='Greys')
+    pyplot.xlabel(image_array_data_guess)
+    pyplot.savefig(f"./supersave/{time.time()}_{image_array_data_guess}_plot.png")
+    print("\n")
+    
+    fooled = guess != image_array_data_guess
+    
+    if not fooled:
+        true_values = true_values+1
+    else:
+        false_values = false_values+1
+        
+    report = report + "File: " + filename + "\n"
+    report = report + "Guess of original image: " + str(guess) + "\n"
+    report = report + "Guess of adversarial image: " + str(image_array_data_guess) + "\n"
+    report = report + "Accurately fooled? " + str(fooled) + "\n\n"
 
-#pyplot.imshow(image_array_data_numpy, cmap='Greys')
-#pyplot.xlabel(image_array_data_guess)
-#pyplot.show()
+report = "Accuracy of adversarial training: " + str(false_values / (false_values + true_values)*100) + "\n\n" + report
+
+text_file = open(f"./supersave/{time.time()}_REPORT.txt", "w")
+n = text_file.write(report)
+text_file.close()
+
+print(report)
